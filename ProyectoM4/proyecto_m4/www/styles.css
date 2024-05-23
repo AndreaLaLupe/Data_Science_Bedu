@@ -1,0 +1,30 @@
+/* styles.css */
+
+/* Personalizar los colores del menú */
+.skin-blue .main-header .logo {
+  background-color: #73addd; /* Celeste */
+}
+.skin-blue .main-header .navbar {
+  background-color: #a6d6fd; /* Celeste más oscuro */
+}
+
+/* Personalizar el color de fondo de la barra lateral izquierda */
+.skin-blue .main-sidebar {
+  background-color: #001f3f; /* Azul oscuro */
+}
+
+/* Personalizar el color del texto del menú */
+.skin-blue .main-header .navbar .sidebar-toggle {
+  color: #fffff; /* Blanco */
+}
+
+/* Personalizar el color de los enlaces de la barra lateral izquierda */
+.skin-blue .main-sidebar .sidebar-menu a {
+  color: #ffffff; /* Texto blanco */
+}
+
+/* Personalizar el color de fondo de los elementos activos de la barra lateral izquierda */
+.skin-blue .main-sidebar .sidebar-menu .active > a,
+.skin-blue .main-sidebar .sidebar-menu .active > a:hover {
+  background-color: #003366; /* Azul oscuro más claro */
+}
