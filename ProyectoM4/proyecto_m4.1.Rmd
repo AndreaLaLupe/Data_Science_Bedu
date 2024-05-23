@@ -1,0 +1,682 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+#install.packages("fbRanks")
+#library(fbRanks)
+
+install.packages(c("caret", "e1071", "MASS", "car", "ggplot2", "dplyr", "caTools", "ggpubr"))
+
+library(ggplot2)
+library(ggpubr)
+library(caret)
+library(e1071)
+library(MASS)
+library(car)
+library(dplyr)
+library(caTools)
+library(gitcreds)
+library(DBI)
+library(RSQLite)
+library(lubridate)
+library(forecast)
+library(tseries)
+#install.packages("gitcreds")
+#install.packages("DBI")
+#install.packages("RSQLite")
+#install.packages("forecast")
+```
+
+# Sesión 01: Introducción a R y Software 
+```{r}
+# Paso 1: Importar datos a R
+world_happiness <- read.csv("Datasets//world-happiness-report-2021.csv")
+
+world_happiness <- subset(world_happiness, select=c("Country.name", "Regional.indicator", "Ladder.score", "Logged.GDP.per.capita", "Social.support", "Healthy.life.expectancy", "Freedom.to.make.life.choices", "Generosity", "Perceptions.of.corruption", "Dystopia...residual"))
+
+world_happiness <- world_happiness %>% rename(Country=Country.name, Region=Regional.indicator, Happiness_score=Ladder.score, GDP=Logged.GDP.per.capita, Social_support=Social.support, Life_expectancy=Healthy.life.expectancy, Freedom=Freedom.to.make.life.choices, Corruption=Perceptions.of.corruption, Dystopia_residual=Dystopia...residual)
+
+# Visualizar los nombres de las columnas
+colnames(world_happiness)
+```
+```{r}
+# Paso 2: Extraer columnas
+numeric_columns <- world_happiness %>%
+  select_if(is.numeric)
+
+# Mostrar las primeras filas del nuevo conjunto de datos
+head(numeric_columns)
+```
+
+```{r}
+# Paso 3: Consultar la función table en R
+?table
+```
+
+```{r}
+# Paso 4: Elaborar tablas de frecuencias relativas para cada columna
+
+# Aplicar la función de tablas de frecuencias relativas a cada columna numérica
+freq_tables <- lapply(numeric_columns, function(column) {
+  prop.table(table(column)) * 100
+})
+
+# Visualizar las tablas
+names(freq_tables) 
+```
+
+```{r}
+# Función para graficar histogramas de las tablas de frecuencias relativas
+plot_histograms <- function(freq_tables) {
+  # Crear un nuevo dispositivo gráfico
+  par(mfrow = c(2, 3))  # Dividir la ventana gráfica en 2 filas y 3 columnas
+  
+  # Graficar histograma para cada tabla de frecuencias relativas
+  for (i in seq_along(freq_tables)) {
+    hist(freq_tables[[i]], main = names(freq_tables)[i], xlab = "Valor", ylab = "Frecuencia (%)")
+  }
+  
+  # Restaurar el diseño original de la ventana gráfica
+  par(mfrow = c(1, 1))
+}
+
+# Llamar a la función plot_histograms con las tablas de frecuencias relativas
+plot_histograms(freq_tables)
+```
+# Sesión 02: Programación y manipulación de datos en R 
+```{r}
+# Paso 2: Usar las funciones str, head, View y summary
+str(world_happiness)  # Estructura del dataframe
+```
+```{r}
+head(world_happiness)  # Primeras filas del dataframe
+```
+```{r}
+View(world_happiness)  # Ver el dataframe en una ventana interactiva
+```
+
+```{r}
+summary(world_happiness)  # Resumen estadístico del datafram
+```
+```{r}
+# Paso 3: Usar la función lapply para aplicar la función select a múltiples columnas
+
+# Usar la función select para seleccionar columnas específicas
+selected_columns <- select(world_happiness, Country, Happiness_score, Life_expectancy, GDP, Generosity)
+head(selected_columns)
+```
+
+```{r}
+# Calcular la media de las columnas numéricas
+means <- lapply(world_happiness[, sapply(world_happiness, is.numeric)], mean, na.rm = TRUE)
+
+means
+```
+```{r}
+# Paso 4: Utilizar as.Date y mutate.
+
+# Establecer la semilla aleatoria para reproducibilidad
+set.seed(123)
+
+# Crear una secuencia de fechas para el año 2021
+fechas_2021 <- seq(as.Date("2021-01-01"), as.Date("2021-12-31"), by = "day")
+
+# Generar fechas aleatorias del año 2021
+fechas_aleatorias <- sample(fechas_2021, nrow(world_happiness), replace = TRUE)
+
+# Agregar la columna de fechas aleatorias al conjunto de datos world_happiness
+world_happiness$Date <- fechas_aleatorias
+
+# Visualizar las primeras filas del conjunto de datos para verificar
+head(world_happiness)
+```
+```{r}
+# Convertir la columna de fechas a formato Date
+world_happiness <- world_happiness %>%
+  mutate(Date = as.Date(Date))
+
+# Calcular el mes y el año para cada fecha
+world_happiness <- world_happiness %>%
+  mutate(Month = format(Date, "%m"),
+         Year = format(Date, "%Y"))
+
+# Visualizar las primeras filas del conjunto de datos actualizado
+head(world_happiness)
+
+```
+
+# Sesión 03: Análisis Exploratorio de Datos (AED o EDA) con R 
+
+```{r}
+world_happiness$Continent <- NA
+
+world_happiness$Continent[which(world_happiness$Country %in% c("Israel", "United Arab Emirates", "Singapore", "Thailand", "Taiwan Province of China", "Qatar", "Saudi Arabia", "Kuwait", "Bahrain", "Malaysia", "Uzbekistan", "Japan", "South Korea", "Turkmenistan", "Kazakhstan", "Turkey", "Hong Kong S.A.R., China", "Philippines", "Jordan", "China", "Pakistan", "Indonesia", "Azerbaijan", "Lebanon", "Vietnam", "Tajikistan", "Bhutan", "Kyrgyzstan", "Nepal", "Mongolia", "Palestinian Territories", "Iran", "Bangladesh", "Myanmar", "Iraq", "Sri Lanka", "Armenia", "India", "Georgia","Cambodia", "Afghanistan", "Yemen", "Syria"))] <- "Asia"
+
+world_happiness$Continent[which(world_happiness$Country %in% c("Norway", "Denmark", "Iceland", "Switzerland", "Finland","Netherlands", "Sweden", "Austria", "Ireland", "Germany","Belgium", "Luxembourg", "United Kingdom", "Czech Republic", "Malta", "France", "Spain", "Slovakia", "Poland", "Italy", "Russia", "Lithuania", "Latvia", "Moldova", "Romania","Slovenia", "North Cyprus", "Cyprus", "Estonia", "Belarus","Serbia", "Hungary", "Croatia", "Kosovo", "Montenegro", "Greece", "Portugal", "Bosnia and Herzegovina", "Macedonia","Bulgaria", "Albania", "Ukraine"))] <- "Europe"
+
+world_happiness$Continent[which(world_happiness$Country %in% c("Canada", "Costa Rica", "United States", "Mexico","Panama","Trinidad and Tobago", "El Salvador", "Belize", "Guatemala", "Jamaica", "Nicaragua", "Dominican Republic", "Honduras", "Haiti"))] <- "North America"
+
+world_happiness$Continent[which(world_happiness$Country %in% c("Chile", "Brazil", "Argentina", "Uruguay","Colombia", "Ecuador", "Bolivia", "Peru", "Paraguay", "Venezuela"))] <- "South America"
+
+world_happiness$Continent[which(world_happiness$Country %in% c("New Zealand", "Australia"))] <- "Australia"
+
+world_happiness$Continent[which(is.na(world_happiness$Continent))] <- "Africa"
+
+
+# Moving the continent column's position in the dataset to the second column
+
+world_happiness <- world_happiness %>% select(Country, Continent, everything())
+
+# Changing Continent column to factor
+
+world_happiness$Continent <- as.factor(world_happiness$Continent)
+```
+
+```{r}
+# Paso 1: Elaborar tablas de frecuencia. 
+freq_country <- table(world_happiness$Country)
+print(freq_country)
+```
+```{r}
+freq_continent <- table(world_happiness$Continent)
+print(freq_continent)
+```
+```{r}
+# Paso 2: Crear gráficos de barras para las probabilidades marginales estimadas y Heatmaps.
+
+# Filtrar los primeros 10 países
+top_countries <- head(sort(table(world_happiness$Country), decreasing = TRUE), 10)
+top_countries <- names(top_countries)
+
+# Crear un nuevo dataframe con solo los datos de los primeros 10 países
+world_happiness_top <- world_happiness[world_happiness$Country %in% top_countries, ]
+
+# Gráfico de barras para los primeros 10 países
+ggplot(data = world_happiness_top, aes(x = Country)) +
+  geom_bar() +
+  labs(title = "Frecuencia de los 10 países más frecuentes")
+```
+```{r}
+# Gráfico de barras para la columna 'Continent'
+ggplot(data = world_happiness, aes(x = Continent)) +
+  geom_bar() +
+  labs(title = "Frecuencia de continentes")
+```
+```{r}
+# Crear un heatmap de las correlaciones entre las variables numéricas
+correlation_matrix <- cor(world_happiness[, sapply(world_happiness, is.numeric)], use = "complete.obs")
+
+# Convertir la matriz de correlación en un formato de datos adecuado para ggplot2
+correlation_df <- reshape2::melt(correlation_matrix)
+
+# Crear el heatmap utilizando ggplot2
+# Crear el heatmap utilizando ggplot2
+heatmap <- ggplot(correlation_df, aes(Var1, Var2, fill = value, label = round(value, 2))) +
+  geom_tile(color = "white") +  # Añadir bordes blancos a las celdas
+  geom_text(color = "black") +   # Añadir texto con los valores de correlación
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +  # Cambiar la paleta de colores
+  labs(title = "Heatmap de Correlación",
+       x = "Variables", y = "Variables") +  # Cambiar los nombres de los ejes
+  theme_minimal() +  # Aplicar un tema minimalista
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar los nombres de los ejes
+
+# Mostrar el heatmap
+print(heatmap)
+```
+# Sesión 04: Algunas distribuciones, Teorema del Límite Central y Contraste de Hipótesis 
+```{r}
+# Paso 1: Obtener una tabla de cocientes. 
+
+# Seleccionar las columnas numéricas para calcular el cociente
+num_col <- names(world_happiness)[sapply(world_happiness, is.numeric)]
+
+# Calcular el cociente para todas las columnas numéricas respecto al Happiness_score
+cocientes <- world_happiness %>%
+  mutate_at(vars(num_col), ~ ./Happiness_score) %>%
+  select(-Happiness_score,-Country, -Continent, -Date, -Year, -Month, -Region) # Eliminar la columna Happiness_score si es necesario
+
+cocientes
+```
+```{r}
+# Convertir la tabla de cocientes en un formato largo (tidy)
+cocientes_long <- tidyr::gather(cocientes, key = "Variable", value = "Cociente")
+
+# Crear un gráfico de barras
+ggplot(cocientes_long, aes(x = Variable, y = Cociente)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Variable", y = "Cociente", title = "Cocientes con respecto a Happiness_score")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# Paso 2: Realizar un procedimiento de boostrap para obtener más cocientes similares.
+
+# Función para realizar el procedimiento de bootstrap y obtener más cocientes
+bootstrap_cocientes <- function(data, num_samples) {
+  sample_indices <- sample(1:nrow(data), size = num_samples, replace = TRUE)
+  bootstrap_samples <- data[sample_indices, ]
+  
+  # Calcular los cocientes para las muestras bootstrap
+  cocientes_bootstrap <- bootstrap_samples %>%
+    mutate_at(vars(num_col), ~ ./Happiness_score) %>%
+    select(-Happiness_score,-Country, -Continent, -Date, -Year, -Month, -Region) # Eliminar la columna Happiness_score si es necesario
+  
+  return(cocientes_bootstrap)
+}
+
+# Definir el número de muestras bootstrap
+num_samples <- 1000
+
+# Realizar el procedimiento de bootstrap
+bootstrap_resultados <- lapply(1:num_samples, function(i) {
+  bootstrap_cocientes(world_happiness, num_samples)
+})
+
+head(bootstrap_resultados)
+```
+
+```{r}
+# Convertir la lista de resultados del bootstrap en un data frame
+bootstrap_df <- bind_rows(bootstrap_resultados, .id = "Bootstrap")
+
+# Convertir la tabla de cocientes en un formato largo (tidy)
+cocientes_long_bt <- tidyr::gather(bootstrap_df, key = "Bootstrap", value = "Cociente")
+
+# Crear un gráfico de barras
+ggplot(cocientes_long_bt, aes(x = Bootstrap, y = Cociente)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Variable", y = "Cociente", title = "Cocientes con respecto a Happiness_score") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+# Sesión 05: Regresión lineal y Clasificación 
+```{r}
+# Paso 2: Crear un directorio de trabajo y utilizar la función write.csv. 
+# Define el directorio de trabajo
+directorio <- "tDatasets"
+
+# Crea el directorio si no existe
+if (!dir.exists(directorio)) {
+  dir.create(directorio)
+}
+
+# Define el nombre del archivo CSV de salida
+world_happiness_data <- file.path(directorio, "world_happiness_data.csv")
+
+# Exporta el dataframe a un archivo CSV
+write.csv(world_happiness, file = world_happiness_data, row.names = FALSE)
+```
+
+```{r}
+# Paso 3: Utilizar la función create.fbRanks.dataframes para preparar los datos
+
+# Carga los datos preparados utilizando la función create.fbRanks.dataframes
+#dataframes <- create.fbRanks.dataframes(inputdir = directorio)
+# Dividir el dataset en conjuntos de entrenamiento y prueba
+#Primero, dividimos nuestro conjunto de datos en conjuntos de entrenamiento y prueba.
+
+world_happiness_subset <- subset(world_happiness, select=c("Happiness_score", "GDP", "Social_support", "Life_expectancy", "Freedom", "Generosity", "Corruption", "Dystopia_residual"))
+
+set.seed(9)
+split = sample.split(world_happiness_subset$Happiness_score, SplitRatio = 0.7)
+training_set = subset(world_happiness_subset, split == TRUE)
+test_set = subset(world_happiness_subset, split == FALSE)
+```
+
+## Regresión Lineal
+```{r}
+#ONuestra variable dependiente es el happiness score, y las variables independientes son Social support, GDP per capita, life expectancy, perceptions of corruption, freedom, generosity, y dystopia residual.
+
+# Ajuste de regresión lineal múltiple al conjunto de entrenamiento
+regressor_lm = lm(formula = Happiness_score ~ ., data = training_set)
+
+summary(regressor_lm)
+```
+
+```{r}
+# Predicción de los resultados del conjunto de pruebas
+y_pred_lm = predict(regressor_lm, newdata = test_set)
+pred_df <- as.data.frame(cbind(Prediction = y_pred_lm, Actual = test_set$Happiness_score))
+
+ggplot(pred_df, aes(Actual, Prediction )) + geom_point() + theme_bw() + geom_abline() + labs(title = "Multiple Linear Regression", x = "Actual happiness score", y = "Predicted happiness score")
+```
+
+### One-Sample T-test¶
+One-sample t-test se utiliza para comparar la media de una muestra con una media estándar conocida (o teórica/hipotética).
+
+```{r}
+#Ho: Corruption no mejora / aporta significativamente al modelo
+regressor_lm_2 = lm(formula = Happiness_score ~ GDP + Social_support + Life_expectancy + Freedom + Generosity + Dystopia_residual, data = training_set)
+
+summary(regressor_lm_2)
+```
+```{r}
+#El valor p (< 2e-16) es extremadamente pequeño, lo que sugiere que la inclusión de Corruption en el modelo mejora significativamente la capacidad del modelo para explicar la variabilidad en el Happiness_score.
+
+# ANOVA
+anova_result <- anova(regressor_lm, regressor_lm_2)
+print(anova_result)
+```
+```{r}
+#Los puntos deben estar dispersos de manera aleatoria alrededor de la línea horizontal en cero. Esto sugiere que el modelo se ajusta bien y no hay patrones sistemáticos en los residuos
+
+#Homoscedasticidad: La dispersión de los residuos debe ser constante a lo largo del rango de valores predichos. Si los residuos se dispersan más en una parte del gráfico que en otra, indica heteroscedasticidad, lo que puede sugerir problemas con el modelo (por ejemplo, los errores no tienen varianza constante).
+
+# Obtener residuos estandarizados
+StanRes2 <- rstandard(regressor_lm)
+
+# Graficar residuos estandarizados
+plot(StanRes2, type = "p", main = "Residuos estandarizados", ylab = "Residuos estandarizados")
+```
+```{r}
+# Si la mayoría de los puntos están cerca de la línea diagonal, los residuos estandarizados siguen aproximadamente una distribución normal. 
+
+# Q-Q plot para residuos estandarizados
+qqnorm(StanRes2)
+qqline(StanRes2)
+```
+```{r}
+# multicolinealidad: variable independiente tiene una alta correlación con otras variables independientes en el modelo
+
+# Valores Bajos de VIF (< 5)
+# Valores Moderados de VIF (entre 5 y 10)
+# Valores Altos de VIF (> 10)
+#GDP tiene una correlación considerable con otras variables
+
+options(scipen=10, digits=3)
+vif <- round(car::vif(regressor_lm),2)
+print(vif)
+```
+
+
+```{r}
+#Preparar la data
+sa <- subset(world_happiness, Region == "South Asia")
+
+summary(world_happiness$Happiness_score)
+```
+```{r}
+#visualizar la data usando box plot
+sa  %>% ggplot(aes(Happiness_score)) + geom_boxplot() + coord_flip() + xlab("Happiness Score") + ylab("South Asia")
+
+```
+```{r}
+#Prueba preliminar para comprobar los supuestos de la prueba t de una muestra:
+#1. ¿Es esta una muestra grande? - No, porque n < 30.
+
+#2. Para comprobar si los datos siguen una distribución normal:
+#2.1 Prueba de Shapiro-Wilk:
+#H0: los datos se distribuyen normalmente
+
+shapiro.test(sa$Happiness_score)
+#pvalue > 0.05 lo que implica que la distribución de los datos no es significativamente diferente de la distribución normal. En otras palabras, podemos asumir la normalidad.
+```
+```{r}
+#2.2 Inspección visual de la normalidad de los datos utilizando Q-Q plots
+ggqqplot(sa$Happiness_score)
+#De los gráficos de normalidad concluimos que los datos pueden provenir de distribuciones normales.
+```
+```{r}
+#one way ttest
+#H0: La puntuación media de felicidad de los países del sur de Asia es 5.
+t.test(sa$Happiness_score, mu = 5)
+
+#p-value 0.1877 > 0.05
+#H0 aceptado.
+#Concluimos que la puntuación media de felicidad de los países del sur de Asia es 5.
+```
+### Unpaired Two-Sample T-test
+The unpaired two-samples t-test se utiliza para comparar la media de dos grupos independientes.
+```{r}
+#Preparar data
+ee <- subset(world_happiness, Region == "Central and Eastern Europe")
+we <- subset(world_happiness, Region == "Western Europe")
+my_data = rbind(ee, we)
+
+#Resumen estadístico por grupos
+group_by(my_data, Region) %>% summarise(count = n(), mean = mean(Happiness_score, na.rm = TRUE), sd = sd(Happiness_score, na.rm = TRUE))
+
+```
+```{r}
+#Visualizar la data usando box plot
+my_data$Region <- as.factor(my_data$Region)
+
+ggboxplot(my_data, x = "Region", y = "Happiness_score", fill = "Region", palette = c("#00AFBB", "#E7B800"), ylab = "Happiness_score", xlab = "Region")
+```
+```{r}
+#Preliminary test to check independent t-test assumptions:
+#1. Are the two samples independent?
+#Yes, since scores from Central and Eastern European countries and Western European countries are not related.
+
+#2. Do they follow normal distribution?
+#Using Shapiro-Wilk normality test:
+shapiro.test(ee$Happiness_score)
+shapiro.test(we$Happiness_score)
+#Los dos valores p son mayores que el nivel de significancia 0.05, lo que implica que la distribución de los datos es normal.
+```
+```{r}
+#3. ¿Las 2 poblaciones tienen las mismas varianzas?
+#Uso de la prueba F para probar la homogeneidad en las varianzas:
+res.ftest <- var.test(Happiness_score ~ Region, data = my_data)
+res.ftest
+#El valor p de la prueba F es p = 0.2498. Es mayor que el nivel de significancia alfa = 0.05.
+#En conclusión, no existe una diferencia significativa entre las variaciones de los dos conjuntos de datos.
+#Por lo tanto, podemos usar la prueba t clásica que supone la igualdad de las dos varianzas.
+```
+```{r}
+#Unpaired Two-Samples T-tests (independiente)
+#H0: No existe una diferencia significativa entre las medias de las puntuaciones de felicidad de los países de Europa central y oriental y los países de Europa occidental.
+t.test(Happiness_score ~ Region, data = my_data, var.equal = TRUE)
+
+#p-value 2.481e-05 < 0.05
+#H0 rechazado.
+#Podemos concluir que la puntuación media de Felicidad de Europa Central y del Este es significativamente diferente de la puntuación media de Felicidad de Europa Occidental.
+```
+
+## SVM
+```{r}
+# Ajustar un modelo SVM con kernel radial y seleccionar el mejor modelo utilizando tune
+set.seed(123)
+tuned_model <- tune(svm, Happiness_score ~ GDP + Social_support + Life_expectancy + Freedom + Generosity + Corruption + Dystopia_residual,
+                    data = training_set,
+                    kernel = "radial",
+                    ranges = list(cost = c(0.1, 1, 10), gamma = c(0.01, 0.1, 1)))
+
+# Mejor modelo
+best_model <- tuned_model$best.model
+print(best_model)
+```
+```{r}
+# Clasificar las observaciones del conjunto de prueba utilizando el mejor modelo
+predictions <- predict(best_model, test_set)
+```
+
+```{r}
+# Sin decision.values=TRUE porque es para clasificación
+Pred_Actual_svr <- as.data.frame(cbind(Prediction = predictions, Actual = test_set$Happiness_score))
+
+ggplot(Pred_Actual_svr, aes(Actual, Prediction )) +
+  geom_point() + theme_bw() + geom_abline() +
+  labs(title = "SVR", x = "Actual happiness score",
+       y = "Predicted happiness score") 
+
+```
+```{r}
+# Evaluación del modelo SVM
+mae_svm <- mean(abs(as.numeric(predictions) - as.numeric(test_set$Happiness_score)))
+mse_svm <- mean((as.numeric(predictions) - as.numeric(test_set$Happiness_score)^2))
+rmse_svm <- sqrt(abs(mse_svm))
+
+cat("Evaluación del modelo SVM:\n")
+cat("MAE:", mae_svm, "\n")
+cat("MSE:", mse_svm, "\n")
+cat("RMSE:", rmse_svm, "\n")
+```
+# Sesión 6 Series de tiempo
+```{r}
+# Paso 01: Agregar columnas. 
+# Crear una columna de mes y año
+world_happiness <- world_happiness %>%
+  mutate(Month_Year = format(Date, "%Y-%m"))
+head(world_happiness)
+```
+```{r}
+# Paso 02: Obtener el promedio. 
+# Agrupar por mes y calcular la media del Happiness_score
+monthly_data <- world_happiness %>%
+  group_by(Month_Year) %>%
+  summarize(Happiness_score = mean(Happiness_score, na.rm = TRUE))
+
+monthly_data
+```
+```{r}
+# Paso 03: Crear una serie de tiempo promedio.  
+# Ordenar los datos por fecha
+monthly_data <- monthly_data[order(monthly_data$Month_Year), ]
+
+# Crear una serie de tiempo mensual del Happiness_score
+ts_data <- ts(monthly_data$Happiness_score, start = c(2021, 1), frequency = 12)
+
+ts_data
+```
+```{r}
+# Paso 04: Graficar la serie de tiempo. 
+
+# Descomposición de la serie temporal
+#decomposed_ts <- decompose(ts_data)
+#plot(decomposed_ts)
+
+# Caminata aleatoria: Diferencias de la serie temporal
+# implica que el valor de la serie en cualquier momento es simplemente el valor anterior ajustado por un cambio aleatorio. 
+# captura la idea de que el cambio en una serie temporal puede ser completamente aleatorio y no seguir ningún patrón discernible.
+random_walk <- diff(ts_data)
+plot(random_walk, main = "Caminata Aleatoria")
+
+# representa la diferencia entre dos valores consecutivos en la serie temporal original.
+# Si las diferencias parecen moverse alrededor de un nivel constante (como cero), sugiere que la serie original no tiene una tendencia y se comporta como una caminata aleatoria.
+# Las diferencias deben parecer ruido blanco, es decir, deben ser independientes y distribuídas normalmente con media cero.
+```
+```{r}
+# Identificación y ajuste de un modelo ARIMA automáticamente
+auto_arima_model <- auto.arima(ts_data, seasonal = TRUE)
+summary(auto_arima_model)
+
+# significa que no hay términos autoregresivos (AR), no hay diferencias (I) y no hay términos de media móvil (MA).
+# indica que los datos no tienen una estructura temporal compleja o no se capturaron suficientes datos para identificar patrones más complejos.
+# Las métricas de error (ME, RMSE, MAE, MPE, MAPE) son bastante pequeñas, lo que sugiere que el modelo ajusta bien los datos disponibles.
+```
+
+```{r}
+# Diagnóstico del modelo ARIMA
+checkresiduals(auto_arima_model)
+
+# Residuos vs. Tiempo: Si los residuos no muestran ninguna tendencia clara en función del tiempo, sugiere que el modelo captura adecuadamente la estructura temporal de los datos.
+# ACF Si los valores de autocorrelación están cerca de cero para todos los rezagos, sugiere que no hay autocorrelación en la serie temporal.
+# Si el histograma muestra una forma sesgada o no es simétrico, puede indicar una violación de la normalidad en los residuo
+```
+
+```{r}
+# Predicción con el modelo ARIMA
+forecast_result <- forecast(auto_arima_model, h = 12)
+plot(forecast_result)
+```
+
+```{r}
+# Evaluación del modelo
+accuracy(forecast_result)
+```
+```{r}
+# Para obtener valores de forma automática
+predicted_values <- forecast_result$mean
+predicted_values
+```
+```{r}
+# Resumen de las predicciones
+pred_summary <- data.frame(
+  Date = seq.Date(from = as.Date("2022-01-01"), by = "month", length.out = 12),
+  Predicted_Happiness_Score = as.numeric(predicted_values)
+)
+
+print(pred_summary)
+```
+```{r}
+# Visualización de predicciones
+ggplot(pred_summary, aes(x = Date, y = Predicted_Happiness_Score)) +
+  geom_line(color = "blue") +
+  labs(title = "Predicción de Happiness Score", x = "Fecha", y = "Predicción de Happiness Score") +
+  theme_minimal()
+```
+```{r}
+# Modelos AR(p)
+ar_model <- auto.arima(ts_data, max.p = 5, max.q = 0, seasonal = FALSE)
+
+summary(ar_model)
+
+# max.p especifica el número máximo de términos autorregresivos (AR) que se considerarán en el modelo ARIMA. En este caso, se establece en 5, lo que significa que el modelo considerará hasta 5 términos AR.
+# max.q especifica el número máximo de términos de media móvil (MA)
+```
+```{r}
+# Modelos MA(q)
+ma_model <- auto.arima(ts_data, max.p = 0, max.q = 5, seasonal = FALSE)
+
+summary(ma_model)
+```
+```{r}
+# ARMA(p, q)
+arma_model <- auto.arima(ts_data, max.p = 5, max.q = 5, seasonal = FALSE)
+summary(arma_model)
+```
+
+
+# Sesión 7 RStudio Cloud y conexiones con BDs
+
+## Github
+```{r}
+#1. Crear repositorio en Github
+#2. Crear un proyecto en Posit
+#3. Desde la terminal colocar:
+#git config --global user.email "aalvarez2014ig@gmail.com"
+#git config --global user.name "AndreaLaLupe"
+#4. Crear token (repo, user, delete_repo) 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
+gitcreds_set() # Para ingresar el token
+
+gitcreds_get()
+#5. Git en Posit, commit, comment, push
+#6. Pull si es de actualizar posit
+```
+
+## Base de datos
+### Crear base de datos
+```{r}
+# Paso 01: Alojar un fichero en una base de datos. 
+
+# Connect to the SQLite database
+conn <- dbConnect(RSQLite::SQLite(), "world_happiness_DB.db")
+```
+### Escribir datos
+```{r}
+# Write the world_happiness DataFrame to a table named 'world_happiness'
+dbWriteTable(conn, "world_happiness", world_happiness, overwrite = TRUE)
+```
+### Cantidad de registros
+```{r}
+# Paso 2: Realizar un count para conocer el número de registros que se tiene en la base. 
+# Paso 3: Realizar una consulta
+# Count the number of records in the table
+count_query <- dbGetQuery(conn, "SELECT COUNT(*) FROM world_happiness")
+print(count_query)
+```
+
+### Mostrar los primeros 5 datos
+```{r} 
+# Perform a query to get the top 5 rows (as an example)
+top_rows <- dbGetQuery(conn, "SELECT * FROM world_happiness LIMIT 5")
+print(top_rows)
+``` 
+### Cerrar conexion
+```{r}
+# Close the connection
+dbDisconnect(conn)
+``` 
+
+
