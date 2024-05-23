@@ -341,8 +341,6 @@ pred_df <- as.data.frame(cbind(Prediction = y_pred_lm, Actual = test_set$Happine
 ggplot(pred_df, aes(Actual, Prediction )) + geom_point() + theme_bw() + geom_abline() + labs(title = "Multiple Linear Regression", x = "Actual happiness score", y = "Predicted happiness score")
 ```
 
-### One-Sample T-test¶
-One-sample t-test se utiliza para comparar la media de una muestra con una media estándar conocida (o teórica/hipotética).
 
 ```{r}
 #Ho: Corruption no mejora / aporta significativamente al modelo
@@ -388,7 +386,8 @@ vif <- round(car::vif(regressor_lm),2)
 print(vif)
 ```
 
-
+### One-Sample T-test¶
+One-sample t-test se utiliza para comparar la media de una muestra con una media estándar conocida (o teórica/hipotética).
 ```{r}
 #Preparar la data
 sa <- subset(world_happiness, Region == "South Asia")
@@ -444,12 +443,12 @@ my_data$Region <- as.factor(my_data$Region)
 ggboxplot(my_data, x = "Region", y = "Happiness_score", fill = "Region", palette = c("#00AFBB", "#E7B800"), ylab = "Happiness_score", xlab = "Region")
 ```
 ```{r}
-#Preliminary test to check independent t-test assumptions:
-#1. Are the two samples independent?
-#Yes, since scores from Central and Eastern European countries and Western European countries are not related.
+#Prueba preliminar para comprobar los supuestos independientes de la prueba t:
+#1. ¿Son las dos muestras independientes?
+#Sí, ya que las puntuaciones de los países de Europa central y oriental y los países de Europa occidental no están relacionadas.
 
-#2. Do they follow normal distribution?
-#Using Shapiro-Wilk normality test:
+#2. ¿Siguen una distribución normal?
+#Usando la prueba de normalidad de Shapiro-Wilk:
 shapiro.test(ee$Happiness_score)
 shapiro.test(we$Happiness_score)
 #Los dos valores p son mayores que el nivel de significancia 0.05, lo que implica que la distribución de los datos es normal.
@@ -637,7 +636,7 @@ summary(arma_model)
 #3. Desde la terminal colocar:
 #git config --global user.email "aalvarez2014ig@gmail.com"
 #git config --global user.name "AndreaLaLupe"
-#4. Crear token (repo, user, delete_repo) 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
+#4. Crear token (repo, user, delete_repo) 
 gitcreds_set() # Para ingresar el token
 
 gitcreds_get()
